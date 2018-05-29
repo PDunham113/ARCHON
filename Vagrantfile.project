@@ -1,0 +1,39 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+# In Windows/MinGW we need to use NUL instead of /dev/null. This does not apply
+# in Cygwin (where 'host_os' below would return as 'cygwin').
+require 'rbconfig'
+is_windows = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw/)
+if is_windows
+  devnull = 'NUL'
+else
+  devnull = '/dev/null'
+end
+
+
+################################################################################
+# Project Dependencies
+################################################################################
+
+# Custom Ubuntu packages installed with apt-get.
+$project_apt_packages = "avr-libc avrdude gcc gcc-avr gdb make pkg-config \
+                         python-pip python-dev"
+
+# Custom Python packages installed with pip.
+$project_pip_packages = ""
+
+################################################################################
+# Project Provisioning Scripts
+################################################################################
+
+# Configure project-specific settings.
+$configure_project_settings = <<EOT
+# Project-specific provisioning code goes here.
+EOT
+
+# Configure the machine and installed tools:
+#   git: Configure the system-wide proxy settings and set the user name/email to
+#        the ones for the host machine (if available).
+$configure_project_tools = <<EOT
+# Project-specific tool setup code goes here.
+EOT
