@@ -1,11 +1,11 @@
 ###############################################################################
-# Vagrant
+# GNU Make
 ###############################################################################
-# Local, machine-specific Vagrant settings
-*.local
+# Compiled AVR binaries
+software/bin/*
+software/.dep/*
 
-# Vagrant data
-.vagrant/*
-
-# Logfiles
-*.log
+*.o
+*.s
+*.elf
+*.hex
