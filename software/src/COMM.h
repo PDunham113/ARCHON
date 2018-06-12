@@ -113,6 +113,6 @@ COM_Message com_rec_packet(void);
 void com_send_state_machine(void);
 void com_rec_state_machine(void);
 
-uint8_t com_calc_checksum(COM_Message* _message);
+uint8_t com_calc_checksum(volatile COM_Message* _message);
 
 #endif /* COMM_H_ */
