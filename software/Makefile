@@ -5,11 +5,13 @@
 # CONFIGURATION
 #-----------------------------------------------------------------------------
 
-CC=avr-gcc
-OBJCOPY=avr-objcopy
-REMOVE=rm -f
+CC = avr-gcc
+OBJCOPY = avr-objcopy
+REMOVE = rm -f
 
-CFLAGS=-O2 -DF_CPU=16000000UL -g -mmcu=atmega328p
+CFLAGS = -O2 -DF_CPU=16000000UL -g -mmcu=atmega328p -std=gnu11
+CFLAGS += -fshort-enums
+CFLAGS += -fpack-struct
 
 #------------------------------------------------------------------------------
 # TARGETS
@@ -17,12 +19,12 @@ CFLAGS=-O2 -DF_CPU=16000000UL -g -mmcu=atmega328p
 
 #-Primary Targets--------------------------------------------------------------
 
-all: begin gccversion build end
+all: begin gccversion build source size end
 
 clean: begin clean_list end
 
 install: ARCHON.hex
-	avrdude -p m328p -c arduino -P /dev/ttyUSB0 -b 57600 -U flash:w:ARCHON.hex:i
+	sudo avrdude -p m328p -c arduino -P /dev/ttyUSB0 -b 57600 -U flash:w:ARCHON.hex:i
 
 #-Support Targets (PHONY)------------------------------------------------------
 
@@ -46,7 +48,15 @@ gccversion:
 
 build: ARCHON.hex
 
-.PHONY: all begin build clean end gccversion
+size: ARCHON.elf
+	@echo "Computing size..."
+	@avr-size ARCHON.elf
+
+source: ARCHON.elf
+	@echo "Generating .lst file..."
+	@avr-objdump -h -S ARCHON.elf > ARCHON.lst
+
+.PHONY: all begin build clean end gccversion size source
 
 
 #-File Targets (The real work)-------------------------------------------------
