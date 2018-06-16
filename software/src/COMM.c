@@ -211,7 +211,7 @@ uint8_t com_calc_checksum(volatile COM_Message* _message) {
 
 /*** ISRS ***/
 
-ISR(USART_RX_vect) {
+COM_RX_INTERRUPT() {
   // If we were receiving a message, keep going
   if (com_status & (1 << COM_RX_BUSY)) {
     com_rec_state_machine();
@@ -227,7 +227,7 @@ ISR(USART_RX_vect) {
   }
 }
 
-ISR(USART_TX_vect) {
+COM_TX_INTERRUPT() {
   // If we started sending a message, keep going
   if (com_status & (1 << COM_TX_BUSY)) {
     com_send_state_machine();

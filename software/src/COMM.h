@@ -20,8 +20,8 @@
 #define COM_MAX_DATA_LENGTH  16
 #define COM_RECV()           urt_recv()
 #define COM_SEND(_byte)      urt_send(_byte)
-#define COM_RX_INTERRUPT
-#define COM_TX_INTERRUPT
+#define COM_RX_INTERRUPT()   ISR(USART_RX_vect)
+#define COM_TX_INTERRUPT()   ISR(USART_TX_vect)
 
 
 /*** VARIABLES & DEFINITIONS ***/
