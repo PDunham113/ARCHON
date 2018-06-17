@@ -1,3 +1,12 @@
+/** @file ARCHON.c
+ *  @brief Addressable RGB LED Controller.
+ *
+ *  Still **far** from being complete.
+ *
+ *  @author Patrick Dunham
+ *  @bug No known bugs.
+ */
+
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <stdint.h>
@@ -18,7 +27,7 @@
 static volatile uint32_t _millis;
 
 // Public
-COM_Message message = {.type = COM_PKT_TEST, .length = 5, .data = "INIT\n"};
+com_message_t message = {.type = COM_PKT_TEST, .length = 5, .data = "INIT\n"};
 uint32_t last_led_update;
 
 /*** FUNCTION DECLARATIONS ***/
