@@ -5,13 +5,41 @@
 # CONFIGURATION
 #-----------------------------------------------------------------------------
 
-CC = avr-gcc
-OBJCOPY = avr-objcopy
-REMOVE = rm -f
+TARGET := ARCHON
+DEVICE := atmega328p
+F_CPU := 16000000
+# 0, 1, 2, 3, s, or debug
+OPT := 2
 
-CFLAGS = -O2 -DF_CPU=16000000UL -g -mmcu=atmega328p -std=gnu11
+# Can be set from command line if different
+AVR_PORT ?= /dev/ttyUSB0
+
+AVR_PROGRAMMER := -c arduino -P $(AVR_PORT) -b 57600
+# AVR_PROGRAMMER := -c atmelice_isp -B 1
+
+# Programs
+CC := avr-gcc
+INSTALL := avrdude
+OBJCOPY := avr-objcopy
+REMOVE := rm -rf
+
+# Directories
+# NOTE: Use '.' for no directory
+BINDIR := bin
+OBJDIR := obj
+SRCDIR := src
+
+# Compiler Flags
+CFLAGS := -O$(OPT) -DF_CPU=$(F_CPU)UL -g -mmcu=$(DEVICE) -std=gnu11
+CFLAGS += -Wl,--gc-sections -mrelax
+CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -fshort-enums
 CFLAGS += -fpack-struct
+
+# Programmer Flags
+AVRDUDE_FLAGS := -p $(DEVICE) $(AVR_PROGRAMMER)
+AVRDUDE_FLASH := -U flash:w:$(BINDIR)/$(TARGET).hex:i
+# AVRDUDE_EEPROM := -U eeprom:w:$(BINDIR)/$(TARGET).eep:i
 
 #------------------------------------------------------------------------------
 # TARGETS
@@ -23,55 +51,63 @@ all: begin gccversion build source size end
 
 clean: begin clean_list end
 
-install: ARCHON.hex
-	sudo avrdude -p m328p -c arduino -P /dev/ttyUSB0 -b 57600 -U flash:w:ARCHON.hex:i
+install: $(BINDIR)/$(TARGET).hex
+	sudo $(INSTALL) $(AVRDUDE_FLAGS) $(AVRDUDE_FLASH) $(AVRDUDE_EEPROM)
 
 #-Support Targets (PHONY)------------------------------------------------------
-
 begin:
 	@echo
 	@echo --------begin--------
 
 clean_list:
 	@echo Cleaning...
-	${REMOVE} *.elf
-	${REMOVE} *.hex
-	${REMOVE} *.lst
-	${REMOVE} *.o
+	$(REMOVE) $(BINDIR)
+	$(REMOVE) $(OBJDIR)
 
 end:
 	@echo ---------end---------
 	@echo
 
 gccversion:
-	@${CC} --version
+	@$(CC) --version
 
-build: ARCHON.hex
+build: $(BINDIR)/$(TARGET).hex
 
-size: ARCHON.elf
+dirs:
+	mkdir -p $(BINDIR) $(OBJDIR)
+
+size: $(BINDIR)/$(TARGET).elf
 	@echo "Computing size..."
-	@avr-size ARCHON.elf
+	@avr-size $(BINDIR)/$(TARGET).elf
 
-source: ARCHON.elf
+source: $(BINDIR)/$(TARGET).elf
 	@echo "Generating .lst file..."
-	@avr-objdump -h -S ARCHON.elf > ARCHON.lst
+	@avr-objdump -h -S $(BINDIR)/$(TARGET).elf > $(BINDIR)/$(TARGET).lst
 
-.PHONY: all begin build clean end gccversion size source
+.PHONY: all begin build dirs clean end gccversion size source
 
 
 #-File Targets (The real work)-------------------------------------------------
+# This makefile assumes that all C files have at most, a single corresponding
+# header file sharing the same name (e.g. foo.c and foo.h).
+#------------------------------------------------------------------------------
 
-ARCHON.hex: ARCHON.elf
-	${OBJCOPY} -O ihex -R .eeprom ARCHON.elf ARCHON.hex
+# Identify C files - compute object file names.
+# Assumes target depends on all c files
+SRC := $(wildcard $(SRCDIR)/*.c)
+OBJ := $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 
-ARCHON.elf: ARCHON.o COMM.o UART.o
-	${CC} ${CFLAGS} -o ARCHON.elf ARCHON.o COMM.o UART.o
+# Generate target hex file from ELF
+$(BINDIR)/$(TARGET).hex: $(BINDIR)/$(TARGET).elf | dirs
+	$(OBJCOPY) -O ihex -R .eeprom $(BINDIR)/$(TARGET).elf $(BINDIR)/$(TARGET).hex
 
-ARCHON.o: src/ARCHON.c
-	${CC} ${CFLAGS} -c src/ARCHON.c
+# Link ELF from various object files
+$(BINDIR)/$(TARGET).elf: $(OBJ) | dirs
+	$(CC) $(CFLAGS) -o $@ $^
 
-COMM.o: src/COMM.c src/COMM.h
-	${CC} ${CFLAGS} -c src/COMM.c
+# Compile all object files
+$(OBJDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/%.h | dirs
+	$(CC) $(CFLAGS) -c $< -o $@
 
-UART.o: src/UART.c src/UART.h
-	${CC} ${CFLAGS} -c src/UART.c
+$(OBJDIR)/%.o: $(SRCDIR)/%.c | dirs
+	$(CC) $(CFLAGS) -c $< -o $@

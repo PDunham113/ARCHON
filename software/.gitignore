@@ -2,11 +2,5 @@
 # GNU Make
 ###############################################################################
 # Compiled AVR binaries
-software/bin/*
-software/.dep/*
-
-*.o
-*.s
-*.elf
-*.hex
-*.lst
+bin/*
+obj/*
