@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #include "COMM.h"
+#include "SPI.h"
 #include "UART.h"
 
 
@@ -80,6 +81,7 @@ int main(void) {
 void init_all(void) {
   tmr_millis_init();
   urt_init(BAUD_RATE);
+  spi_init(spi_settings);
 }
 
 /** @brief Retrieve number of milliseconds since start
