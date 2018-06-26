@@ -10,10 +10,11 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 #include <stdint.h>
+#include <util/delay.h>
 
-#include "COMM.h"
-#include "SPI.h"
-#include "UART.h"
+//#include "COMM.h"
+#include "RGB_LED.h"
+//#include "UART.h"
 
 
 /*** CONFIGURATION ***/
@@ -28,8 +29,13 @@
 static volatile uint32_t _millis;
 
 // Public
-com_message_t message = {.type = COM_PKT_TEST, .length = 5, .data = "INIT\n"};
-uint32_t last_led_update;
+/*const com_message_t messages[] = {
+  {.type = COM_PKT_TEST, .length = 5, .data = "INIT\n"},
+  {.type = COM_PKT_TEST, .length = 6, .data = "START\n"},
+  {.type = COM_PKT_TEST, .length = 6, .data = " LOOP\n"},
+  {.type = COM_PKT_TEST, .length = 6, .data = " SENT\n"},
+};*/
+
 
 /*** FUNCTION DECLARATIONS ***/
 
@@ -41,30 +47,98 @@ void tmr_millis_init(void);
 void tmr_millis_start(void);
 void tmr_millis_stop(void);
 
+//void print_uint32_hex(uint32_t _num);
+
 
 /*** BODY ***/
 
 int main(void) {
-  init_all();
-  sei();
+  rgb_led[0].red   = 0xFF;
+  rgb_led[0].green = 0x00;
+  rgb_led[0].blue  = 0x00;
 
-  // Start 1ms timer
-  tmr_millis_start();
+  rgb_led[1].red   = 0xFF;
+  rgb_led[1].green = 0x7F;
+  rgb_led[1].blue  = 0x00;
 
-  com_send_packet(message);
+  rgb_led[2].red   = 0xFF;
+  rgb_led[2].green = 0xFF;
+  rgb_led[2].blue  = 0x00;
 
-  // Configure pins
-  DDRB |= (1 << PINB5);
-  PORTB |= (1 << PINB5);
+  rgb_led[3].red   = 0x00;
+  rgb_led[3].green = 0xFF;
+  rgb_led[3].blue  = 0x00;
+
+  rgb_led[4].red   = 0x00;
+  rgb_led[4].green = 0x00;
+  rgb_led[4].blue  = 0xFF;
+
+  rgb_led[5].red   = 0x4B;
+  rgb_led[5].green = 0x00;
+  rgb_led[5].blue  = 0x82;
+
+  rgb_led[6].red   = 0x94;
+  rgb_led[6].green = 0x00;
+  rgb_led[6].blue  = 0xD3;
+
+  rgb_led[7].red   = 0xFF;
+  rgb_led[7].green = 0x00;
+  rgb_led[7].blue  = 0x00;
+
+  rgb_led[8].red   = 0x00;
+  rgb_led[8].green = 0xFF;
+  rgb_led[8].blue  = 0x00;
+
+  rgb_led[9].red   = 0x00;
+  rgb_led[9].green = 0x00;
+  rgb_led[9].blue  = 0xFF;
+
+  rgb_led[10].red   = 0xFF;
+  rgb_led[10].green = 0xFF;
+  rgb_led[10].blue  = 0xFF;
+
+  rgb_led[11].red   = 0x00;
+  rgb_led[11].green = 0x00;
+  rgb_led[11].blue  = 0xFF;
+
+  rgb_led[12].red   = 0xFF;
+  rgb_led[12].green = 0x00;
+  rgb_led[12].blue  = 0x00;
+
+  rgb_led[13].red   = 0x00;
+  rgb_led[13].green = 0xFF;
+  rgb_led[13].blue  = 0x00;
+
+  rgb_led[14].red   = 0x00;
+  rgb_led[14].green = 0x00;
+  rgb_led[14].blue  = 0xFF;
+
+  rgb_led[15].red   = 0xFF;
+  rgb_led[15].green = 0x00;
+  rgb_led[15].blue  = 0x00;
+
+  rgb_led[16].red   = 0x00;
+  rgb_led[16].green = 0xFF;
+  rgb_led[16].blue  = 0x00;
+
+  rgb_led[17].red   = 0x00;
+  rgb_led[17].green = 0x00;
+  rgb_led[17].blue  = 0xFF;
+
+  rgb_led[18].red   = 0x00;
+  rgb_led[18].green = 0xFF;
+  rgb_led[18].blue  = 0x00;
+
+  rgb_led[19].red   = 0x00;
+  rgb_led[19].green = 0x00;
+  rgb_led[19].blue  = 0xFF;
+
+  rgb_init();
+  _delay_us(50);
+  rgb_push();
 
   while(1) {
-    uint32_t _now = millis();
 
-    if (_now - last_led_update >= LED_UPDATE_PERIOD) {
-      last_led_update = _now;
-      PORTB ^= (1 << PINB5);
-      com_send_packet(message);
-    }
   }
 
   return 0;
@@ -80,8 +154,6 @@ int main(void) {
  */
 void init_all(void) {
   tmr_millis_init();
-  urt_init(BAUD_RATE);
-  spi_init(spi_settings);
 }
 
 /** @brief Retrieve number of milliseconds since start
@@ -140,7 +212,43 @@ void tmr_millis_stop(void) {
   TCCR0B &= ~((1 << CS02) | (1 << CS01) | (1 << CS00));
 }
 
-/// @brief TIMER0 millis timer interrupt
-ISR(TIMER0_COMPA_vect) {
-  _millis++;
+/// @brief Print 32-bit unsigned int to UART in hex
+/// TODO: WRITE DOCS
+/*void print_uint32_hex(uint32_t _num) {
+  com_message_t _hex_msg = {.type = COM_PKT_TEST, .length = 8,
+                            .data = "        "};
+  for (uint8_t idx = 0; idx < 8; idx++) {
+    // Convert each nibble to hex
+    uint8_t _nibble = (_num >> (4 * (7 - idx))) & 0b1111;
+    switch (_nibble) {
+      case 0:
+      case 1:
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+      case 8:
+      case 9: {
+        _hex_msg.data[idx] = '0' + _nibble;
+      } break;
+      case 10:
+      case 11:
+      case 12:
+      case 13:
+      case 14:
+      case 15: {
+        _hex_msg.data[idx] = 'A' + _nibble - 10;
+      } break;
+      default:
+      {
+        _hex_msg.data[idx] = '#';
+      } break;
+    }
+  }
+
+  while (com_status & (1 << COM_TX_BUSY));
+  com_send_packet(_hex_msg);
 }
+*/
