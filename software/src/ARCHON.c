@@ -21,113 +21,35 @@
 /*** CONFIGURATION ***/
 
 #define BAUD_RATE 9600UL // [baud]
-#define LED_UPDATE_PERIOD 500 // [ms]
 
 
 /*** VARIABLES ***/
 
-/*const com_message_t messages[] = {
-  {.type = COM_PKT_TEST, .length = 5, .data = "INIT\n"},
-  {.type = COM_PKT_TEST, .length = 6, .data = "START\n"},
-  {.type = COM_PKT_TEST, .length = 6, .data = " LOOP\n"},
-  {.type = COM_PKT_TEST, .length = 6, .data = " SENT\n"},
-};*/
+const com_message_t BUSY_MSG = {.type = COM_PKT_BUSY};
+const com_message_t READY_MSG = {.type = COM_PKT_READY};
 
+uint8_t g_msg_ok_to_send = 0;
+uint16_t g_led_block = 0;
 
 /*** FUNCTION DECLARATIONS ***/
 
 void init_all(void);
-
+void process_incoming_message(void);
+void push_to_led(void);
 
 /*** BODY ***/
 
 int main(void) {
-  rgb_led[0].red   = 0xFF;
-  rgb_led[0].green = 0x00;
-  rgb_led[0].blue  = 0x00;
+  // Setup all devices
+  init_all();
 
-  rgb_led[1].red   = 0xFF;
-  rgb_led[1].green = 0x7F;
-  rgb_led[1].blue  = 0x00;
-
-  rgb_led[2].red   = 0xFF;
-  rgb_led[2].green = 0xFF;
-  rgb_led[2].blue  = 0x00;
-
-  rgb_led[3].red   = 0x00;
-  rgb_led[3].green = 0xFF;
-  rgb_led[3].blue  = 0x00;
-
-  rgb_led[4].red   = 0x00;
-  rgb_led[4].green = 0x00;
-  rgb_led[4].blue  = 0xFF;
-
-  rgb_led[5].red   = 0x4B;
-  rgb_led[5].green = 0x00;
-  rgb_led[5].blue  = 0x82;
-
-  rgb_led[6].red   = 0x94;
-  rgb_led[6].green = 0x00;
-  rgb_led[6].blue  = 0xD3;
-
-  rgb_led[7].red   = 0xFF;
-  rgb_led[7].green = 0x00;
-  rgb_led[7].blue  = 0x00;
-
-  rgb_led[8].red   = 0x00;
-  rgb_led[8].green = 0xFF;
-  rgb_led[8].blue  = 0x00;
-
-  rgb_led[9].red   = 0x00;
-  rgb_led[9].green = 0x00;
-  rgb_led[9].blue  = 0xFF;
-
-  rgb_led[10].red   = 0xFF;
-  rgb_led[10].green = 0xFF;
-  rgb_led[10].blue  = 0xFF;
-
-  rgb_led[11].red   = 0x00;
-  rgb_led[11].green = 0x00;
-  rgb_led[11].blue  = 0xFF;
-
-  rgb_led[12].red   = 0xFF;
-  rgb_led[12].green = 0x00;
-  rgb_led[12].blue  = 0x00;
-
-  rgb_led[13].red   = 0x00;
-  rgb_led[13].green = 0xFF;
-  rgb_led[13].blue  = 0x00;
-
-  rgb_led[14].red   = 0x00;
-  rgb_led[14].green = 0x00;
-  rgb_led[14].blue  = 0xFF;
-
-  rgb_led[15].red   = 0xFF;
-  rgb_led[15].green = 0x00;
-  rgb_led[15].blue  = 0x00;
-
-  rgb_led[16].red   = 0x00;
-  rgb_led[16].green = 0xFF;
-  rgb_led[16].blue  = 0x00;
-
-  rgb_led[17].red   = 0x00;
-  rgb_led[17].green = 0x00;
-  rgb_led[17].blue  = 0xFF;
-
-  rgb_led[18].red   = 0x00;
-  rgb_led[18].green = 0xFF;
-  rgb_led[18].blue  = 0x00;
-
-  rgb_led[19].red   = 0x00;
-  rgb_led[19].green = 0x00;
-  rgb_led[19].blue  = 0xFF;
-
-  rgb_init();
-  _delay_us(50);
-  rgb_push();
+  sei();
 
   while(1) {
-
+    // Check for finished incoming messages.
+    if (com_status & (1 << COM_RX_READY)) {
+      process_incoming_message();
+    }
   }
 
   return 0;
@@ -142,5 +64,91 @@ int main(void) {
  * in this function.
  */
 void init_all(void) {
+  rgb_init();
   tmr_millis_init();
+  urt_init(BAUD_RATE);
+}
+
+/** @brief Process the incoming COMM message
+ *
+ *  The following types of messages are supported:
+ *    COM_PKT_BUSY
+ *      Sets `g_msg_ok_to_send` to 0, blocking sent messages.
+ *    COM_PKT_LED_CTRL
+ *      CHANGE_BLOCK
+ *        Update active LED block
+ *      COPY
+ *        Copy one LED to others
+ *      ERASE
+ *        Clear all LEDs
+ *      PUSH
+ *        Update LEDs
+ *    COM_PKT_LED_DATA
+ *      Write each LED data segment to the correct LED within the block.
+ *    COM_PKT_READY
+ *      Sets `g_msg_ok_to_send` to 1, allowing sent messages.
+ *  @returns Void.
+ */
+void process_incoming_message(void) {
+  // Grab received packet
+  com_message_t _rec_pkt = com_rec_packet();
+
+  // Process packet.
+  switch (_rec_pkt.type) {
+    // Ensure we don't send any more packets
+    case COM_PKT_BUSY: {
+      g_msg_ok_to_send = 0;
+    } break;
+    // Process LED control commands
+    case COM_PKT_LED_CTRL: {
+      // TODO: Support ALL the commands
+      switch (_rec_pkt.data[0]) {
+        // CHANGE_BLOCK ('B')
+        case 0x42: {
+          g_led_block = _rec_pkt.data[1];
+        } break;
+        // COPY ('C')
+        case 0x43: {
+          uint16_t _cpy_idx = g_led_block & _rec_pkt.data[1];
+          for (uint8_t _led = 2; _led < _rec_pkt.length; _led++) {
+            rgb_led[g_led_block & _rec_pkt.data[_led]] = rgb_led[_cpy_idx];
+          }
+        } break;
+        // ERASE ('E')
+        case 0x45: {
+          rgb_clear();
+        } break;
+        // PUSH ('P')
+        case 0x50: {
+          push_to_led();
+        } break;
+      }
+    } break;
+    // Set RGB_LED buffer to new data
+    case COM_PKT_LED_DATA: {
+      for(uint8_t _led = 0; _led < _rec_pkt.length; _led += 4) {
+        uint16_t _rgb_idx = g_led_block & _rec_pkt.data[_led];
+        rgb_led[_rgb_idx].red = _rec_pkt.data[_led + 1];
+        rgb_led[_rgb_idx].green = _rec_pkt.data[_led + 2];
+        rgb_led[_rgb_idx].blue = _rec_pkt.data[_led + 3];
+      }
+    } break;
+    // Allow us to send more packets
+    case COM_PKT_READY: {
+      g_msg_ok_to_send = 1;
+    } break;
+  }
+}
+
+/** @brief Push new data to LED strip, inform the rest of the world
+ *
+ *  Send a COM_PKT_BUSY, push to LEDs & latch, then send a COM_PKT_READY.
+ *
+ *  @returns Void.
+ */
+void push_to_led(void) {
+  com_send_packet(BUSY_MSG);
+  rgb_push();
+  _delay_us(5);
+  com_send_packet(READY_MSG);
 }

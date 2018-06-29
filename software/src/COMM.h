@@ -8,7 +8,7 @@
  *
  *  @author Patrick Dunham
  *  @bug No known bugs.
- *  @version 0.0.1
+ *  @version 0.1.0-rgb
  */
 
 #ifndef COMM_H
@@ -54,10 +54,53 @@ typedef enum com_state {
   COM_DONE,
 } com_state_t;
 
-// Message Types
+/** @brief Message Types
+ *
+ *  Currently, 4 different message types are supported:
+ *    COM_PKT_EMPTY <0x00>
+ *      Completely empty packet, 0 length, no data. Use for heartbeats, etc.
+ *    COM_PKT_TEST <0x01>
+ *      No restrictions on contents, use for testing only
+ *      Each packet may contain an arbitrary number of LED data entries.
+ *    COM_PKT_BUSY
+ *      Indicates the device sending is busy - data is ignored. Packets sent to
+ *      the device are not guaranteed to be processed until device sends a
+ *      COM_PKT_READY.
+ *    COM_PKT_LED_CTRL
+ *      Execute one of various LED commands, specified by the first data byte.
+ *      Supported commands are:
+ *        CHANGE_BLOCK <0x42>
+ *          Change which 8-bit block the LED_DATA packet writes to. Second byte
+ *          specifies the new block to write to.
+ *        COPY <0x43>
+ *          Copy the value of one LED to multiple other LEDs. Second byte
+ *          specifies the parent LED, all other bytes specify child LEDs.
+ *        ERASE <0x45>
+ *          Sets all LEDs within the block to 0. No additional parameters.
+ *        PUSH <0x50>
+ *          Force an immediate update of the RGB LEDs with whatever is in the
+ *          buffers. No additional parameters.
+ *    COM_PKT_LED_DATA
+ *      Update with new RGB LED data, each LED is expressed in 4 bytes. The
+ *      format is:
+ *      ```
+ *      <LED_NUM><R_VAL><G_VAL><B_VAL>
+ *      ```
+ *    COM_PKT_READY
+ *      Indicates the device sending is ready to recieve - data is ignored.
+ *      Packets sent to the device are guaranteed to be processed until device
+ *      sends a COM_PKT_BUSY.
+ *
+ *  NOTE: The byte values of com_type are currently left undefined, except for
+ *        COM_PKT_EMPTY and COM_PKT_TEST
+ */
 typedef enum com_type {
-  COM_PKT_EMPTY,
-  COM_PKT_TEST,
+  COM_PKT_EMPTY = 0x00,
+  COM_PKT_TEST = 0x01,
+  COM_PKT_BUSY,
+  COM_PKT_LED_CTRL,
+  COM_PKT_LED_DATA,
+  COM_PKT_READY,
 } com_type_t;
 
 // Status Bits
