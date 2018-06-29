@@ -6,6 +6,7 @@
  *
  *  @author Patrick Dunham
  *  @bug No known bugs.
+ *  @version 0.0.1
  */
 
 #include "MILLIS_TIMER.h"
