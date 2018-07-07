@@ -10,13 +10,14 @@ else
   devnull = '/dev/null'
 end
 
+
 ################################################################################
 # Local Configuration Parameters
 ################################################################################
 
 # Configure the VM name within the provider. VM instances are identified using
 # their unique names.
-$vm_name = "ARCHON"
+$vm_name = $project_name
 
 # Specify the number of CPU cores to allocate to the VM.
 $num_cpus = 2
@@ -30,7 +31,7 @@ $memory_size = 2048
 $enable_gui_mode = false
 
 # Specify the hostname for this machine.
-$hostname = "ARCHON-vm"
+$hostname = "#{$project_name}-vm"
 
 # Set to 'true' to enable bridged networking.
 $network_bridged = false
@@ -66,12 +67,17 @@ $files = ["~/.gitconfig",]
 # Set to 'true' to disable vagrant box download verification.
 $download_insecure = false
 
+
 ################################################################################
 # Local Dependencies
 ################################################################################
 
 # Custom Ubuntu packages installed with apt-get.
-$local_apt_packages = "nano vim"
+$local_apt_packages = "\
+  minicom \
+  nano \
+  vim \
+"
 
 # Custom Python packages installed with pip.
 $local_pip_packages = ""
@@ -91,10 +97,10 @@ EOT
 #        the ones for the host machine (if available).
 $configure_local_tools = <<EOT
 echo "Configuring installed tools."
-git config --system core.editor nano
-git config --system core.filemode false
-git config --system http.proxy $http_proxy
-git config --system https.proxy $https_proxy
+git config --global core.editor nano
+git config --global core.filemode false
+git config --global http.proxy $http_proxy
+git config --global https.proxy $https_proxy
 if [ ! -z "#{$git_name}" ]; then
     git config --global user.name "#{$git_name}"
 else

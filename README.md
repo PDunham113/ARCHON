@@ -50,12 +50,8 @@ vagrant ssh
 ```
 
 #### Common Errors
--   Ensure the project is located along a path that contains no whitespace.
-    Vagrant gets astoundingly cranky when there's whitespace.
 -   Ensure that virtualization extensions are enabled (you may need to check
     your BIOS)
--   Ensure you have a `Vagrantfile.local`. If you don't, copy and rename
-    `Vagrantfile.local.example`.
 
 
 [vagrant_install]: https://www.vagrantup.com/downloads.html

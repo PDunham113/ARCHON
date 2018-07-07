@@ -1,14 +1,13 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
-# In Windows/MinGW we need to use NUL instead of /dev/null. This does not apply
-# in Cygwin (where 'host_os' below would return as 'cygwin').
-require 'rbconfig'
-is_windows = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw/)
-if is_windows
-  devnull = 'NUL'
-else
-  devnull = '/dev/null'
-end
+
+
+################################################################################
+# Project Dependencies
+################################################################################
+
+# Project name
+$project_name = "ARCHON"
 
 
 ################################################################################
@@ -16,11 +15,23 @@ end
 ################################################################################
 
 # Custom Ubuntu packages installed with apt-get.
-$project_apt_packages = "avr-libc avrdude gcc gcc-avr gdb make pkg-config \
-                         python-pip python-dev"
+$project_apt_packages = "\
+  avr-libc \
+  avrdude \
+  gcc \
+  gcc-avr \
+  gdb \
+  make \
+  pkg-config \
+  python3-dev \
+  python3-pip \
+"
 
 # Custom Python packages installed with pip.
-$project_pip_packages = ""
+$project_pip_packages = "\
+  pyserial \
+"
+
 
 ################################################################################
 # Project Provisioning Scripts

@@ -1,28 +1,25 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-# In Windows/MinGW we need to use NUL instead of /dev/null. This does not apply
-# in Cygwin (where 'host_os' below would return as 'cygwin').
-require 'rbconfig'
-is_windows = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw/)
-if is_windows
-  devnull = 'NUL'
-else
-  devnull = '/dev/null'
-end
-
 
 ################################################################################
 # Custom configurations
 ################################################################################
 
-# Load local configurations.
-local_vagrantfile = File.expand_path('../Vagrantfile.local', __FILE__)
-load local_vagrantfile if File.exists?(local_vagrantfile)
+# Define Vagrantfile locations
+ex_vagrantfile = File.expand_path("./Vagrantfile.local.example", __dir__)
+local_vagrantfile = File.expand_path("./Vagrantfile.local", __dir__)
+project_vagrantfile = File.expand_path("./Vagrantfile.project", __dir__)
 
 # Load project configurations.
-project_vagrantfile = File.expand_path('../Vagrantfile.project', __FILE__)
 load project_vagrantfile if File.exists?(project_vagrantfile)
+
+# Load local configurations. If they don't exist, copy the example Vagrantfile.
+if !File.exists?(local_vagrantfile)
+  print "Creating local Vagrantfile...\n"
+  FileUtils.cp(ex_vagrantfile, local_vagrantfile)
+end
+load local_vagrantfile
 
 
 ################################################################################
@@ -49,7 +46,8 @@ echo "http_proxy=$http_proxy" >> /etc/environment
 echo "https_proxy=$https_proxy" >> /etc/environment
 
 sed -i -e '/env_keep =/d' /etc/sudoers
-echo "Defaults env_keep = \\"http_proxy https_proxy ftp_proxy\\"" >> /etc/sudoers
+echo "Defaults env_keep = \\"http_proxy https_proxy ftp_proxy\\"" >> \
+/etc/sudoers
 
 if [ -f /etc/apt/apt.conf ]; then
     sed -i -e '/Acquire::http::Proxy/d' /etc/apt/apt.conf
@@ -78,27 +76,13 @@ EOT
 $install_pip_packages = <<EOT
 echo "Installing required pip packages."
 
-yes | pip install #{$project_pip_packages} #{$local_pip_packages}
+yes | pip3 install #{$project_pip_packages} #{$local_pip_packages}
 EOT
 
 
 ################################################################################
 # VM Configuration
 ################################################################################
-
-def provisionFile(path, config)
-  if not File.exist?(path)
-    return
-  end
-  if File.directory?(path)
-    config.vm.provision "shell", privileged: false, inline: "mkdir #{path}"
-    for file in Dir[File.expand_path(path) + "/*"]
-      provisionFile(file, config)
-    end
-  else
-    config.vm.provision "file", source: path, destination: path
-  end
-end
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
@@ -107,7 +91,7 @@ end
 Vagrant.configure("2") do |config|
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  config.vm.box = "ubuntu/xenial64"
+  config.vm.box = "bento/ubuntu-18.04"
 
   # Use local setting for insecure box downloads.
   config.vm.box_download_insecure = $download_insecure
@@ -127,7 +111,7 @@ Vagrant.configure("2") do |config|
   # the path on the host to the actual folder. The second argument is
   # the path on the guest to mount the folder. And the optional third
   # argument is a set of non-required options.
-  config.vm.synced_folder "./", "/home/vagrant/ARCHON/"
+  config.vm.synced_folder "./", "/home/vagrant/#{$project_name}/"
 
   # VirtualBox Config
   config.vm.provider "virtualbox" do |vb|
@@ -173,7 +157,9 @@ Vagrant.configure("2") do |config|
   end
 
   for file in $files
-    provisionFile(file, config)
+    if File.exists?(file)
+      config.vm.provision "file", source: file, destination: file
+    end
   end
 
   if $http_proxy != ""
@@ -190,10 +176,12 @@ Vagrant.configure("2") do |config|
 
   # Configure installed tools.
   config.vm.provision "shell", inline: $configure_project_tools
-  config.vm.provision "shell", inline: $configure_local_tools
+  config.vm.provision "shell", inline: $configure_local_tools,
+                      privileged: false
 
   # Store the version of the Vagrant configuration used to provision the VM.
-  config.vm.provision "shell", privileged: false,
-                      inline: "echo -n \"#{$vm_version}\" > /home/ubuntu/.vm_version"
+  config.vm.provision "shell",
+                      inline: "echo -n \"#{$vm_version}\" > \
+                               /home/.vm_version"
 
 end
