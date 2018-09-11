@@ -136,7 +136,7 @@ def print_message(msg: CommMessage):
     @raises None.
     """
     text_msg = [
-        "SOM:\t0x15\n",
+        "SOM:\t0x{}\n".format(START_CHAR.hex()),
         "TYPE:\t0x{}\n".format(msg.type.hex()),
         "LENGTH:\t0x{}\n".format(msg.length.hex()),
         "DATA:\t{}\n".format(":".join(
